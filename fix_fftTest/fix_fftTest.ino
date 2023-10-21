@@ -1,19 +1,20 @@
-#include "arduinoFFT.h"
+#include <fix_fft.h>
 
 // Factors to change
 
 const int num_readings = 100;
 
-const uint16_t samples = 512;
+const uint16_t samples = 256;
+const int16_t power2Samples = 8;
 
-const double signal1Freq = 500;
-const double signal1Amp = 500;
+const double signal1Freq = 250;
+const double signal1Amp = 40;
 
 const double signal2Freq = 1000;
-const double signal2Amp = 300;
+const double signal2Amp = 0;
 
 const double signal3Freq = 2000;
-const double signal3Amp = 300;
+const double signal3Amp = 0;
 
 const double signal4Freq = 5167;
 const double signal4Amp = 0;
@@ -28,20 +29,17 @@ const int samplingFrequency = 44100;
 const double signal1Cycles = (((samples-1) * signal1Freq) / samplingFrequency);
 const double signal2Cycles = (((samples-1) * signal2Freq) / samplingFrequency);
 const double signal3Cycles = (((samples-1) * signal3Freq) / samplingFrequency);
-const double signal4Cycles = (((samples-1) * signal3Freq) / samplingFrequency);
-const double signal5Cycles = (((samples-1) * signal3Freq) / samplingFrequency);
+const double signal4Cycles = (((samples-1) * signal4Freq) / samplingFrequency);
+const double signal5Cycles = (((samples-1) * signal5Freq) / samplingFrequency);
 
-double vReal[samples];
-double vImag[samples];
+int8_t vReal[samples];
+int8_t vImag[samples];
 
-arduinoFFT fft = arduinoFFT(vReal, vImag, samples, samplingFrequency);
-
-// uint32_t ETA;
-uint32_t times[num_readings];
 uint64_t total = 0;
 int num_times = 0;
+int norm_constant = 10000;
 
-void dummyFFT(int real, int imag) {}
+double twoPi = 6.283185307;
 
 void setup() {
   // put your setup code here, to run once:
@@ -53,21 +51,25 @@ void setup() {
    TCCR1A = 0;
    TCCR1B = 1;
 
-   fft.Windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-
    Serial.println("setup complete");
 }
 
 void loop() {
   for (int i = 0; i < samples; i++) {
-    vReal[i] = double(signal1Amp * (sin(i * (twoPi * signal1Cycles) / samples)) + signal2Amp * (sin(i * (twoPi * signal2Cycles) / samples)) + signal3Amp * (sin(i * (twoPi * signal3Cycles) / samples)) + signal4Amp * (sin(i * (twoPi * signal4Cycles) / samples)) + signal5Amp * (sin(i * (twoPi * signal5Cycles) / samples)));
+    vReal[i] = int8_t(signal1Amp * (sin(i * (twoPi * signal1Cycles) / samples)) + signal2Amp * (sin(i * (twoPi * signal2Cycles) / samples)) + signal3Amp * (sin(i * (twoPi * signal3Cycles) / samples)) + signal4Amp * (sin(i * (twoPi * signal4Cycles) / samples)) + signal5Amp * (sin(i * (twoPi * signal5Cycles) / samples)));
     vImag[i] = 0;
   }
 
   uint32_t startTime = micros();
-  fft.Compute(FFT_FORWARD);
+  fix_fft(vReal, vImag, power2Samples, 0);
   uint32_t endTime = micros();
   uint32_t ETA = endTime - startTime;
+  // uncomment when testing for accuracy
+  for (int i = 0; i < samples / 2; i++) {
+    Serial.println(vReal[i] * vReal[i] + vImag[i] * vImag[i]);
+  }
+  while(1);
+
   Serial.println(ETA);
   total += ETA;
   num_times++;
